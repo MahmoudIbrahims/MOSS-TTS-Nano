@@ -519,6 +519,19 @@ class MossTTSGroupGenerator:
             "Attempting to extract actual generated sequence..."
         )
 
+        # original_output = gen_sequences
+
+        # # --------------------------------------------------------
+        # # Case 1: Tensor
+        # # --------------------------------------------------------
+
+        # if torch.is_tensor(gen_sequences):
+
+        #     logger.info(
+        #         "generate() returned Tensor directly."
+        #     )
+
+
         original_output = gen_sequences
 
         # --------------------------------------------------------
@@ -531,6 +544,51 @@ class MossTTSGroupGenerator:
                 "generate() returned Tensor directly."
             )
 
+        # --------------------------------------------------------
+        # Case 2: MOSS custom generation output
+        # --------------------------------------------------------
+
+        elif hasattr(gen_sequences, "audio_token_ids"):
+
+            logger.info(
+                "MOSS generation output detected."
+            )
+
+            logger.info(
+                "audio_token_ids type=%s shape=%s",
+                type(gen_sequences.audio_token_ids),
+                getattr(gen_sequences.audio_token_ids, "shape", None),
+            )
+
+            logger.info(
+                "prompt_input_ids type=%s shape=%s",
+                type(gen_sequences.prompt_input_ids),
+                getattr(gen_sequences.prompt_input_ids, "shape", None),
+            )
+
+            gen_sequences = gen_sequences.audio_token_ids
+
+            describe_object(
+                "EXTRACTED MOSS audio_token_ids",
+                gen_sequences
+            )
+
+        # --------------------------------------------------------
+        # Case 3: ModelOutput with .sequences
+        # --------------------------------------------------------
+
+        elif hasattr(gen_sequences, "sequences"):
+
+            logger.info(
+                "generate() returned object with `.sequences`."
+            )
+
+            gen_sequences = gen_sequences.sequences
+
+            describe_object(
+                "EXTRACTED .sequences",
+                gen_sequences
+            )
         # --------------------------------------------------------
         # Case 2: ModelOutput with .sequences
         # --------------------------------------------------------
