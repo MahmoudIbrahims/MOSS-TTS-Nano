@@ -317,42 +317,67 @@ class MossTTSGroupGenerator:
                 f"prompt_input_ids must be Tensor, got {type(prompt_input_ids)}"
             )
 
-        if prompt_input_ids.ndim > 2:
+        # if prompt_input_ids.ndim > 2:
+    
+        #     logger.warning(
+        #         "prompt_input_ids ndim=%d > 2, reshaping...",
+        #         prompt_input_ids.ndim
+        #     )
 
-            logger.warning(
-                "prompt_input_ids ndim=%d > 2, reshaping...",
-                prompt_input_ids.ndim
+        #     prompt_input_ids = prompt_input_ids.view(
+        #         -1,
+        #         prompt_input_ids.shape[-1]
+        #     )
+
+        # batch_size, seq_len = prompt_input_ids.shape
+
+        # logger.info(
+        #     "Original batch_size=%d | seq_len=%d",
+        #     batch_size,
+        #     seq_len
+        # )
+
+        # # ========================================================
+        # # 2. Expand group
+        # # ========================================================
+
+        # expanded_input_ids = (
+        #     prompt_input_ids
+        #     .repeat_interleave(self.group_size, dim=0)
+        #     .to(self.device)
+        # )
+
+        # logger.info(
+        #     "expanded_input_ids: shape=%s dtype=%s device=%s",
+        #     tuple(expanded_input_ids.shape),
+        #     expanded_input_ids.dtype,
+        #     expanded_input_ids.device,
+        # )
+
+        # MOSS input shape: [batch, frames, channels]
+        if prompt_input_ids.ndim != 3:
+            raise ValueError(
+                f"Expected prompt_input_ids to have 3 dimensions "
+                f"[batch, frames, channels], got shape={prompt_input_ids.shape}"
             )
 
-            prompt_input_ids = prompt_input_ids.view(
-                -1,
-                prompt_input_ids.shape[-1]
+        batch_size, seq_len, num_channels = prompt_input_ids.shape
+
+        print(
+            f"MOSS input: batch={batch_size}, "
+            f"frames={seq_len}, "
+            f"channels={num_channels}"
+        )
+
+        expanded_input_ids = prompt_input_ids.repeat_interleave(
+            self.group_size,
+            dim=0
+        ).to(self.device)
+
+        print(
+            f"expanded_input_ids shape={expanded_input_ids.shape}, "
+            f"device={expanded_input_ids.device}"
             )
-
-        batch_size, seq_len = prompt_input_ids.shape
-
-        logger.info(
-            "Original batch_size=%d | seq_len=%d",
-            batch_size,
-            seq_len
-        )
-
-        # ========================================================
-        # 2. Expand group
-        # ========================================================
-
-        expanded_input_ids = (
-            prompt_input_ids
-            .repeat_interleave(self.group_size, dim=0)
-            .to(self.device)
-        )
-
-        logger.info(
-            "expanded_input_ids: shape=%s dtype=%s device=%s",
-            tuple(expanded_input_ids.shape),
-            expanded_input_ids.dtype,
-            expanded_input_ids.device,
-        )
 
         expanded_attention_mask = None
 
