@@ -279,3 +279,29 @@ python finetuning/verify.py \
 ```
 
 You can also continue using the repository-level `infer.py`. Checkpoints saved by finetuning are already packaged in a format that `infer.py` can load directly.
+
+--------------------------------------
+### Single-GPU Execution GRPO:
+```bash
+accelerate launch finetuning/train_grpo.py \
+    --model-path "models/MOSS-TTS-Nano" \
+    --codec-path "models/MOSS-Audio-Tokenizer-Nano" \
+    --train-jsonl "data/train_data.jsonl" \
+    --group-size 4 \
+    --per-device-batch-size 1 \
+    --learning-rate 5e-6 \
+    --num-epochs 2
+
+```
+---------------------------------------
+### Multi-GPU Execution:
+```bash
+accelerate launch --multi_gpu --num_processes=2 finetuning/train_grpo.py \
+    --model-path "models/MOSS-TTS-Nano" \
+    --codec-path "models/MOSS-Audio-Tokenizer-Nano" \
+    --train-jsonl "data/train_data.jsonl" \
+    --group-size 4 \
+    --per-device-batch-size 1 \
+    --learning-rate 5e-6 \
+    --num-epochs 2
+```
