@@ -149,7 +149,6 @@ class MossTTSGroupGenerator:
 
         gen_sequences = self.model.generate(
             input_ids=expanded_input_ids,
-            attention_mask=expanded_attention_mask,
             max_new_frames=self.max_new_frames
         )
 
