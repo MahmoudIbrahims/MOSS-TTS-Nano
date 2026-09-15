@@ -290,7 +290,7 @@
 
 #--------------------------------
 import torch
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from transformers import AutoModel
 
 
@@ -327,7 +327,7 @@ class MossTTSGroupGenerator:
     def generate_group_samples(
         self,
         prompt_input_ids: torch.LongTensor,
-        prompt_attention_mask: torch.BoolTensor = None,
+        prompt_attention_mask: Optional[torch.Tensor] = None,
     ) -> Dict[str, Any]:
 
         if prompt_input_ids.ndim > 2:
@@ -335,14 +335,24 @@ class MossTTSGroupGenerator:
 
         batch_size, seq_len = prompt_input_ids.shape
 
+        # توسيع الـ input_ids للـ group_size
         expanded_input_ids = prompt_input_ids.repeat_interleave(self.group_size, dim=0).to(self.device)
+
+        expanded_attention_mask = None
+        if prompt_attention_mask is not None:
+            if prompt_attention_mask.ndim > 2:
+                prompt_attention_mask = prompt_attention_mask.view(-1, prompt_attention_mask.shape[-1])
+            expanded_attention_mask = prompt_attention_mask.repeat_interleave(self.group_size, dim=0).to(self.device)
 
         gen_sequences = self.model.generate(
             input_ids=expanded_input_ids,
+            attention_mask=expanded_attention_mask,
             max_new_frames=self.max_new_frames,
-            do_sample=True
-            # temperature=self.temperature,
-            # top_p=self.top_p
+            do_sample=True,
+            text_temperature=self.temperature,
+            audio_temperature=self.temperature,
+            text_top_p=self.top_p,
+            audio_top_p=self.top_p,
         )
 
         if hasattr(gen_sequences, "sequences"):
@@ -355,7 +365,7 @@ class MossTTSGroupGenerator:
 
         generated_wavs = []
         for i in range(gen_audio_tokens.shape[0]):
-            single_audio_tokens = gen_audio_tokens[i] # (gen_len, n_vq)
+            single_audio_tokens = gen_audio_tokens[i]  # (gen_len, n_vq)
             
             tokens_for_codec = single_audio_tokens.transpose(0, 1).unsqueeze(0)
             
@@ -363,7 +373,7 @@ class MossTTSGroupGenerator:
                 wav = self.codec.decode(tokens_for_codec)
                 if isinstance(wav, tuple):
                     wav = wav[0]
-                wav = wav.squeeze(0).cpu() # Waveform (1, samples)
+                wav = wav.squeeze(0).cpu()  # Waveform (1, samples)
             except Exception as e:
                 wav = torch.zeros((1, self.sample_rate), dtype=torch.float32)
 
@@ -371,6 +381,7 @@ class MossTTSGroupGenerator:
 
         return {
             "expanded_input_ids": expanded_input_ids,
+            "expanded_attention_mask": expanded_attention_mask,
             "gen_sequences": gen_sequences,
             "gen_audio_tokens": gen_audio_tokens,
             "generated_wavs": generated_wavs, 
