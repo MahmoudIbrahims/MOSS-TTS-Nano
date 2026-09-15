@@ -39,8 +39,15 @@ class MossTTSGroupGenerator:
         prompt_input_ids: torch.LongTensor,
         prompt_attention_mask: torch.BoolTensor,
     ) -> Dict[str, Any]:
-      
+
+        if prompt_input_ids.ndim > 2:
+            prompt_input_ids = prompt_input_ids.view(-1, prompt_input_ids.shape[-1])
+        if prompt_attention_mask is not None and prompt_attention_mask.ndim > 2:
+            prompt_attention_mask = prompt_attention_mask.view(-1, prompt_attention_mask.shape[-1])
+
         batch_size, seq_len = prompt_input_ids.shape
+      
+        # batch_size, seq_len = prompt_input_ids.shape
         
         expanded_input_ids = prompt_input_ids.repeat_interleave(self.group_size, dim=0).to(self.device)
         expanded_attention_mask = prompt_attention_mask.repeat_interleave(self.group_size, dim=0).to(self.device)
