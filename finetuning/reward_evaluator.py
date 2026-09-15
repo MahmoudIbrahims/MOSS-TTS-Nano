@@ -5,8 +5,8 @@ import numpy as np
 import torchaudio
 from typing import List, Dict, Any, Tuple
 import jiwer
-from transformers import AutoProcessor, CohereAsrForConditionalGeneration
-
+# from transformers import AutoProcessor, CohereAsrForConditionalGeneration
+from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq
 
 class MossTTSRewardEvaluator:
     def __init__(
@@ -27,9 +27,10 @@ class MossTTSRewardEvaluator:
 
         print(f"Loading Cohere ASR model from {cohere_model_name}...")
         self.asr_processor = AutoProcessor.from_pretrained(cohere_model_name)
-        self.asr_model = CohereAsrForConditionalGeneration.from_pretrained(
+        self.asr_model = AutoModelForSpeechSeq2Seq.from_pretrained(
             cohere_model_name,
             device_map=self.device,
+            trust_remote_code=True,
             torch_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
         )
         self.asr_model.eval()
