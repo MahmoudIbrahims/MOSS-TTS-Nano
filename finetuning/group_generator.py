@@ -822,7 +822,119 @@ class MossTTSGroupGenerator:
                 tuple(tokens_for_codec.shape)
             )
 
+            # try:
+
+            #     wav = self.codec.decode(
+            #         tokens_for_codec
+            #     )
+
+            #     logger.info(
+            #         "Raw codec output type = %s",
+            #         type(wav)
+            #     )
+
+            #     if isinstance(wav, tuple):
+
+            #         logger.info(
+            #             "Codec returned tuple. Taking first element."
+            #         )
+
+            #         wav = wav[0]
+
+            #     logger.info(
+            #         "Raw waveform shape = %s",
+            #         getattr(wav, "shape", None)
+            #     )
+
+            #     wav = wav.squeeze(0).cpu()
+
+            #     logger.info(
+            #         "Final waveform shape = %s",
+            #         tuple(wav.shape)
+            #     )
+
+            #     generated_wavs.append(wav)
+
+            # except Exception as e:
+
+            #     logger.error("=" * 80)
+            #     logger.error(
+            #         "CODEC DECODE FAILED FOR SAMPLE %d",
+            #         i
+            #     )
+            #     logger.error(
+            #         "Exception: %s",
+            #         str(e)
+            #     )
+            #     logger.error(
+            #         "Traceback:\n%s",
+            #         traceback.format_exc()
+            #     )
+            #     logger.error("=" * 80)
+
+            #     # Keep pipeline alive
+            #     wav = torch.zeros(
+            #         (1, self.sample_rate),
+            #         dtype=torch.float32
+            #     )
+
+            #     generated_wavs.append(wav)
+
             try:
+
+                # ========================================================
+                # DEBUG: Validate codec input BEFORE decode
+                # ========================================================
+
+                logger.info(
+                    "CODEC INPUT dtype = %s",
+                    tokens_for_codec.dtype
+                )
+
+                logger.info(
+                    "CODEC INPUT device = %s",
+                    tokens_for_codec.device
+                )
+
+                logger.info(
+                    "CODEC INPUT shape = %s",
+                    tuple(tokens_for_codec.shape)
+                )
+
+                # Move a copy to CPU for safe inspection.
+                # This is important because CUDA device-side asserts
+                # can make subsequent CUDA operations unreliable.
+                codec_tokens_cpu = tokens_for_codec.detach().cpu()
+
+                logger.info(
+                    "CODEC INPUT CPU shape = %s",
+                    tuple(codec_tokens_cpu.shape)
+                )
+
+                logger.info(
+                    "CODEC INPUT min = %d",
+                    codec_tokens_cpu.min().item()
+                )
+
+                logger.info(
+                    "CODEC INPUT max = %d",
+                    codec_tokens_cpu.max().item()
+                )
+
+                logger.info(
+                    "CODEC INPUT unique count = %d",
+                    codec_tokens_cpu.unique().numel()
+                )
+
+                # Log the first few token values
+                logger.info(
+                    "CODEC INPUT first values = %s",
+                    codec_tokens_cpu.flatten()[:32].tolist()
+                )
+
+                # ========================================================
+                # Decode
+                # ========================================================
 
                 wav = self.codec.decode(
                     tokens_for_codec
@@ -846,11 +958,38 @@ class MossTTSGroupGenerator:
                     getattr(wav, "shape", None)
                 )
 
-                wav = wav.squeeze(0).cpu()
+                # ========================================================
+                # Normalize waveform shape
+                # ========================================================
+
+                if not torch.is_tensor(wav):
+                    raise RuntimeError(
+                        "Codec returned a non-tensor waveform: "
+                        f"{type(wav)}"
+                    )
+
+                if wav.ndim == 3 and wav.shape[0] == 1:
+                    wav = wav.squeeze(0)
+
+                elif wav.ndim == 2:
+                    wav = wav.squeeze(0)
+
+                elif wav.ndim != 1:
+                    raise RuntimeError(
+                        "Unexpected waveform shape from codec: "
+                        f"{tuple(wav.shape)}"
+                    )
+
+                wav = wav.detach().float().cpu()
 
                 logger.info(
                     "Final waveform shape = %s",
                     tuple(wav.shape)
+                )
+
+                logger.info(
+                    "Final waveform dtype = %s",
+                    wav.dtype
                 )
 
                 generated_wavs.append(wav)
@@ -874,7 +1013,7 @@ class MossTTSGroupGenerator:
 
                 # Keep pipeline alive
                 wav = torch.zeros(
-                    (1, self.sample_rate),
+                    (self.sample_rate,),
                     dtype=torch.float32
                 )
 
