@@ -710,8 +710,6 @@ class MossTTSGroupGenerator:
         # 7. Extract audio tokens
         # ========================================================
 
-        prompt_len = seq_len
-
         logger.info(
             "Extracting audio tokens..."
         )
@@ -721,41 +719,51 @@ class MossTTSGroupGenerator:
             tuple(gen_sequences.shape)
         )
 
-        logger.info(
-            "prompt_len = %d",
-            prompt_len
-        )
+        # MOSS `audio_token_ids` already contains GENERATED audio only.
+        #
+        # Shape:
+        #   [batch, generated_frames, num_codebooks]
+        #
+        # Example:
+        #   [4, 15, 16]
 
-        logger.info(
-            "gen_sequences.shape[1] = %d",
-            gen_sequences.shape[1]
-        )
-
-        logger.info(
-            "gen_sequences.shape[2] = %d",
-            gen_sequences.shape[2]
-        )
-
-        if gen_sequences.shape[1] <= prompt_len:
-
+        if gen_sequences.ndim != 3:
             raise RuntimeError(
-                "No generated tokens after prompt. "
-                f"sequence_length={gen_sequences.shape[1]}, "
-                f"prompt_len={prompt_len}"
+                "Expected MOSS audio_token_ids to be 3D. "
+                f"Got shape={tuple(gen_sequences.shape)}"
             )
 
-        if gen_sequences.shape[2] <= 1:
+        generated_frames = gen_sequences.shape[1]
+        num_codebooks = gen_sequences.shape[2]
 
+        logger.info(
+            "generated_frames = %d",
+            generated_frames
+        )
+
+        logger.info(
+            "num_codebooks = %d",
+            num_codebooks
+        )
+
+        if generated_frames == 0:
             raise RuntimeError(
-                "Generated sequence does not contain expected audio channels. "
+                "MOSS generated zero audio frames."
+            )
+
+        if num_codebooks != 16:
+            raise RuntimeError(
+                "Unexpected number of audio codebooks. "
+                f"Expected 16, got {num_codebooks}. "
                 f"shape={tuple(gen_sequences.shape)}"
             )
 
-        gen_audio_tokens = gen_sequences[
-            :,
-            prompt_len:,
-            1:
-        ]
+        # IMPORTANT:
+        # No prompt slicing.
+        # No channel slicing.
+        # audio_token_ids is already generated audio.
+
+        gen_audio_tokens = gen_sequences
 
         logger.info(
             "gen_audio_tokens shape = %s",
@@ -771,6 +779,10 @@ class MossTTSGroupGenerator:
             "gen_audio_tokens device = %s",
             gen_audio_tokens.device
         )
+
+        # For MOSS audio_token_ids, there is no prompt
+        # inside this tensor.
+        prompt_len = 0
 
         # ========================================================
         # 8. Decode audio
