@@ -26,12 +26,12 @@ class MossTTSRewardEvaluator:
         }
 
         print(f"Loading Cohere ASR model from {cohere_model_name}...")
-        self.asr_processor = AutoProcessor.from_pretrained(cohere_model_name)
+        self.asr_processor = AutoProcessor.from_pretrained(cohere_model_name,trust_remote_code=True)
         self.asr_model = AutoModelForSpeechSeq2Seq.from_pretrained(
             cohere_model_name,
             device_map=self.device,
             trust_remote_code=True,
-            torch_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+            dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
         )
         self.asr_model.eval()
 
